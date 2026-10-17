@@ -1,6 +1,6 @@
 import { getCfg, store, okDev, json } from '../lib/common.mjs';
 import { aiStream } from '../lib/ai.mjs';
-import { DEFAULT_PROMPT } from '../lib/prompt.mjs';
+import { DEFAULT_PROMPT, LANGS } from '../lib/prompt.mjs';
 
 const clip = (v, n) => String(v || '').replace(/[\r\n]+/g, ' ').slice(0, n);
 
@@ -17,7 +17,11 @@ export default async (req) => {
   const n = +(await us.get(key)) || 0;
   if (n >= cfg.dailyLimit) return json({ error: "Bugungi limit tugadi, ertaga qayta urinib ko'ring" }, 429);
 
-  const prompt = (cfg.prompt || DEFAULT_PROMPT)
+  const L = LANGS[b.lang] || LANGS.uz;
+  let tpl = cfg.prompt || DEFAULT_PROMPT;
+  if (!tpl.includes('{TIL}')) tpl += '\nМуҳим: ' + L.til + '.';
+  const prompt = tpl
+    .replaceAll('{TIL}', L.til).replaceAll('{XARITA}', L.xarita).replaceAll('{USTUN}', L.ustun)
     .replaceAll('{FAN}', clip(b.fan, 60)).replaceAll('{SINF}', clip(b.sinf, 4))
     .replaceAll('{MAVZU}', topic).replaceAll('{VAQT}', clip(b.vaqt, 4));
   try {

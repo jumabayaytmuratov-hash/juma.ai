@@ -34,7 +34,7 @@ button:disabled{opacity:.5}
 <body>
 <div class="w">
 <header><h1>📘 Dars ishlanma</h1><a class="gear" href="/admin.html" aria-label="Admin">⚙️</a></header>
-<p class="s">Fan, sinf va mavzuni kiriting — texnologik xaritali tayyor dars ishlanma oling. Word (.docx) yuklab olish pullik.</p>
+<p class="s">Fan, sinf va mavzuni kiriting — 5E modeli asosida, texnologik xaritali tayyor dars ishlanma oling. Word (.docx) yuklab olish pullik.</p>
 <span class="b" id="left"></span><span class="b p" id="prem">⭐ Yillik Premium</span>
 
 <div class="c">
@@ -43,6 +43,7 @@ button:disabled{opacity:.5}
 <div><label>Sinf</label><select id="sinf"></select></div>
 <div><label>Vaqt (daqiqa)</label><input id="vaqt" type="number" value="45" min="20" max="90"></div>
 </div>
+<label>Dars ishlanma tili</label><select id="til"><option value="uz">O'zbekcha (lotin)</option><option value="uzc">Ўзбекча (кирилл)</option><option value="kaa">Qaraqalpaqsha (lotin)</option><option value="ru">Русский</option></select>
 <label>Dars mavzusi</label><input id="mavzu" placeholder="Masalan: Elektr zanjiri">
 <button id="go">Dars ishlanma yaratish</button>
 <div class="err" id="gmsg"></div>
@@ -73,6 +74,8 @@ const m=n=>(+n).toLocaleString('ru-RU')+" so'm";
 const esc=t=>t.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 let CFG={lesson:0,year:0,tg:'',card:''},ME={left:0,premium:false},last='',IMG=[],SVG=[];
 for(let i=1;i<=11;i++)$('sinf').add(new Option(i+'-sinf',i,false,i===8));
+$('til').value=localStorage.getItem('til')||'uz';$('til').onchange=()=>localStorage.setItem('til',$('til').value);
+const LBLS={uz:'Rasm',uzc:'Расм',kaa:'Sýwret',ru:'Рисунок'},LBL=()=>LBLS[$('til').value]||'Rasm';
 
 async function load(){
   try{CFG=await (await fetch('/api/config')).json();ME=await (await fetch('/api/me?d='+dev)).json();}catch(e){}
@@ -116,7 +119,7 @@ function renderOut(){
     if(i+1<parts.length){
       const n=+parts[i+1],f=document.createElement('figure');f.style.margin='12px 0';
       if(IMG[n]){const im=document.createElement('img');im.src=IMG[n];f.appendChild(im);}
-      const c=document.createElement('figcaption');c.className='s';c.textContent='Rasm '+n+(parts[i+2]?': '+parts[i+2].trim():'');f.appendChild(c);
+      const c=document.createElement('figcaption');c.className='s';c.textContent=LBL()+' '+n+(parts[i+2]?': '+parts[i+2].trim():'');f.appendChild(c);
       o.appendChild(f);
     }
   }
@@ -130,7 +133,7 @@ $('go').onclick=async()=>{
   $('go').disabled=true;$('go').textContent='Yaratilmoqda…';
   $('res').classList.remove('hide');$('out').textContent='';$('msg').textContent='';last='';IMG=[];
   try{
-    const r=await post('/api/generate',{topic:t,fan:$('fan').value,sinf:$('sinf').value,vaqt:$('vaqt').value});
+    const r=await post('/api/generate',{lang:$('til').value,topic:t,fan:$('fan').value,sinf:$('sinf').value,vaqt:$('vaqt').value});
     if(!r.ok){const j=await r.json().catch(()=>({}));throw new Error(j.error||'Xatolik '+r.status);}
     const rd=r.body.getReader(),dec=new TextDecoder();
     for(;;){const {done,value}=await rd.read();if(done)break;last+=dec.decode(value,{stream:true});$('out').textContent=last;}
@@ -139,7 +142,7 @@ $('go').onclick=async()=>{
     if(caps.length){
       $('go').textContent='Rasmlar chizilmoqda…';
       try{
-        const ri=await post('/api/images',{topic:t,captions:caps.map(c=>c[2])});
+        const ri=await post('/api/images',{lang:$('til').value,topic:t,captions:caps.map(c=>c[2])});
         const {svgs=[]}=await ri.json();
         caps.forEach((c,k)=>{const u=svgs[k]&&svgToUrl(svgs[k]);if(u)IMG[+c[1]]=u;});
         renderOut();
@@ -156,7 +159,7 @@ $('dl').onclick=async()=>{
   try{
     const images={};
     for(const n of [1,2,3])if(IMG[n]){const p=await toPng(IMG[n]);if(p)images[n]=p;}
-    const r=await post('/api/download',{text:last,images});
+    const r=await post('/api/download',{lang:$('til').value,text:last,images});
     if(r.status===402){$('msg').textContent="Word yuklash pullik — to'lovni amalga oshiring";$('pay').classList.remove('hide');$('pay').scrollIntoView({behavior:'smooth',block:'center'});return;}
     if(!r.ok)throw new Error('Xatolik '+r.status);
     const u=URL.createObjectURL(await r.blob()),a=document.createElement('a');
